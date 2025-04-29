@@ -10,122 +10,9 @@ import { Search, Instagram, ZoomIn, ZoomOut, Tag } from "lucide-react"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { get } from 'http';
 
 dotenv.config()
-/* 
-// Datos de ejemplo para los diseños
-const designs = [
-  {
-    id: 1,
-    code: "167",
-    name: "Luffy",
-    fullName: "167-Luffy",
-    tags: ["one piece", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado del capitán de los Sombreros de Paja, Monkey D. Luffy de One Piece.",
-  },
-  {
-    id: 2,
-    code: "168",
-    name: "Goku",
-    fullName: "168-Goku",
-    tags: ["dragon ball", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Goku, el protagonista de Dragon Ball.",
-  },
-  {
-    id: 3,
-    code: "169",
-    name: "Vegeta",
-    fullName: "169-Vegeta",
-    tags: ["dragon ball", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado del príncipe saiyajin Vegeta de Dragon Ball.",
-  },
-  {
-    id: 4,
-    code: "170",
-    name: "Naruto",
-    fullName: "170-Naruto",
-    tags: ["naruto", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Naruto Uzumaki, protagonista de Naruto.",
-  },
-  {
-    id: 5,
-    code: "171",
-    name: "Sasuke",
-    fullName: "171-Sasuke",
-    tags: ["naruto", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Sasuke Uchiha de la serie Naruto.",
-  },
-  {
-    id: 6,
-    code: "172",
-    name: "Zoro",
-    fullName: "172-Zoro",
-    tags: ["one piece", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Roronoa Zoro, el espadachín de los Sombreros de Paja.",
-  },
-  {
-    id: 7,
-    code: "173",
-    name: "Tanjiro",
-    fullName: "173-Tanjiro",
-    tags: ["demon slayer", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Tanjiro Kamado, protagonista de Demon Slayer.",
-  },
-  {
-    id: 8,
-    code: "174",
-    name: "Nezuko",
-    fullName: "174-Nezuko",
-    tags: ["demon slayer", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Nezuko Kamado de Demon Slayer.",
-  },
-  {
-    id: 9,
-    code: "175",
-    name: "Eren",
-    fullName: "175-Eren",
-    tags: ["attack on titan", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Eren Yeager, protagonista de Attack on Titan.",
-  },
-  {
-    id: 10,
-    code: "176",
-    name: "Mikasa",
-    fullName: "176-Mikasa",
-    tags: ["attack on titan", "anime", "personaje"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Mikasa Ackerman de Attack on Titan.",
-  },
-  {
-    id: 11,
-    code: "177",
-    name: "Pikachu",
-    fullName: "177-Pikachu",
-    tags: ["pokemon", "anime", "mascota"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Pikachu, el Pokémon más popular.",
-  },
-  {
-    id: 12,
-    code: "178",
-    name: "Charizard",
-    fullName: "178-Charizard",
-    tags: ["pokemon", "anime", "mascota"],
-    image: "/placeholder.svg?height=300&width=300",
-    description: "Diseño bordado de Charizard, uno de los Pokémon más poderosos.",
-  },
-]
- */
+
 // Lista de franquicias para el dropdown
 const franchises = [
   "naruto",
@@ -146,14 +33,14 @@ const franchises = [
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedDesign, setSelectedDesign] = useState(null)
+  const [selectedDesign, setSelectedDesign] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; } | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [isScrolled, setIsScrolled] = useState(false)
-  const [designs, setDesigns] = useState([]) // Reemplaza el estado firebaseData por designs
+  const [designs, setDesigns] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; }[]>([]) // Reemplaza el estado firebaseData por designs
   const [isLoading, setIsLoading] = useState(true)
 
-  const scrollRef = useRef(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   // Detectar scroll para aplicar efectos al navbar
   useEffect(() => {
@@ -178,7 +65,7 @@ export default function Home() {
         const data = await getData();
         if (data) {
           setDesigns(data); // Guarda los datos en el estado designs
-          console.log("Diseños cargados:", data);
+          //console.log("Diseños cargados:", data);
         }
       } catch (error) {
         console.error("Error cargando diseños:", error);
@@ -202,7 +89,7 @@ export default function Home() {
   }) : [];
 
   // Abrir el diálogo con el diseño seleccionado
-  const openDesignDetail = (design) => {
+  const openDesignDetail = (design: { id: string; code: string; name: string; tags: string[]; image: string; }) => {
     setSelectedDesign(design)
     setIsDialogOpen(true)
     setZoomLevel(1) // Resetear zoom al abrir
@@ -218,11 +105,11 @@ export default function Home() {
   }
 
   // Manejar clic en etiqueta de franquicia
-  const handleFranchiseClick = (franchise) => {
+  const handleFranchiseClick = (franchise: string) => {
     setSearchTerm(franchise)
     // Desplazar al inicio de los resultados
     window.scrollTo({
-      top: scrollRef.current.offsetTop,
+      top: scrollRef.current?.offsetTop ?? 0,
       behavior: "smooth",
     })
   }

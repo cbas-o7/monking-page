@@ -20,7 +20,7 @@ const firebaseConfig = {
 //console.log(process.env) // remove this after you've confirmed it is working
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+initializeApp(firebaseConfig);
 
 // Initialize Cloud Firestore and get a reference to the service
 const db = getFirestore("monking-db");
