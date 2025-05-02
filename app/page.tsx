@@ -1,19 +1,16 @@
 "use client"
 
-import dotenv from 'dotenv';
+import Header from '@/components/Header';
 import { getData } from "@/src/firebase"
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Instagram, ZoomIn, ZoomOut, Tag } from "lucide-react"
+import { Instagram } from "lucide-react"
 import Image from "next/image"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import DesignDialog from '@/components/DesignDialog';
 
-dotenv.config()
-
-// Lista de franquicias para el dropdown
+// Lista de franquicias para el dropdown (fuera del componente para evitar recreación)
 const franchises = [
   "naruto",
   "nike",
@@ -31,149 +28,124 @@ const franchises = [
   "death note",
 ]
 
+// Memoized Design Card
+const DesignCard = memo(function DesignCard({
+  design,
+  onClick,
+}: {
+  design: { id: string; code: string; name: string; tags: string[]; image: string; },
+  onClick: (design: { id: string; code: string; name: string; tags: string[]; image: string; }) => void
+}) {
+  return (
+    <div
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer border border-gray-200"
+      onClick={() => onClick(design)}
+    >
+      <div className="relative h-64 w-full">
+        <Image src={design.image || "/placeholder.svg"} alt={design.name} fill className="object-contain" />
+      </div>
+      <div className="p-4">
+        <h3 className="text-lg font-semibold mb-2 text-black">{design.name}</h3>
+        <div className="flex flex-wrap gap-2">
+          {Array.isArray(design.tags) ? design.tags.map((tag, index) => (
+            <Badge
+              key={index}
+              variant="outline"
+              className="bg-gray-100 text-black hover:bg-gray-200 border-gray-300"
+            >
+              {tag}
+            </Badge>
+          )) : null}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedDesign, setSelectedDesign] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; } | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [designs, setDesigns] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; }[]>([]) // Reemplaza el estado firebaseData por designs
-  const [isLoading, setIsLoading] = useState(true)
-
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  // Detectar scroll para aplicar efectos al navbar
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true)
-      } else {
-        setIsScrolled(false)
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll)
-    return () => {
-      window.removeEventListener("scroll", handleScroll)
-    }
-  }, [])
+  const [designs, setDesigns] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; }[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setIsLoading(true);
         const data = await getData();
         if (data) {
-          setDesigns(data); // Guarda los datos en el estado designs
-          //console.log("Diseños cargados:", data);
+          setDesigns(data);
         }
       } catch (error) {
         console.error("Error cargando diseños:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // Filtrar diseños basados en el término de búsqueda
-  const filteredDesigns = Array.isArray(designs) ? designs.filter((design) => {
+  // Memoriza el filtrado para evitar cálculos innecesarios
+  const filteredDesigns = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
-    return (
-      design.name.toLowerCase().includes(searchLower) ||
-      (Array.isArray(design.tags) && design.tags.some(tag =>
-        tag.toLowerCase().includes(searchLower)
-      ))
-    );
-  }) : [];
+    return Array.isArray(designs)
+      ? designs.filter((design) =>
+          design.name.toLowerCase().includes(searchLower) ||
+          (Array.isArray(design.tags) && design.tags.some(tag =>
+            tag.toLowerCase().includes(searchLower)
+          ))
+        )
+      : [];
+  }, [designs, searchTerm]);
 
-  // Abrir el diálogo con el diseño seleccionado
-  const openDesignDetail = (design: { id: string; code: string; name: string; tags: string[]; image: string; }) => {
+  // Memoriza funciones para evitar recreación
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel((prev) => Math.min(prev + 0.5, 3))
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel((prev) => Math.max(prev - 0.5, 1))
+  }, []);
+
+  const handleFranchiseClick = useCallback((franchise: string) => {
+    setSearchTerm(franchise)
+  }, []);
+
+  const memoSetSearchTerm = useCallback((value: string) => setSearchTerm(value), []);
+  const memoSetIsDialogOpen = useCallback((open: boolean) => setIsDialogOpen(open), []);
+
+  const openDesignDetail = useCallback((design: { id: string; code: string; name: string; tags: string[]; image: string; }) => {
     setSelectedDesign(design)
     setIsDialogOpen(true)
-    setZoomLevel(1) // Resetear zoom al abrir
-  }
+    setZoomLevel(1)
+  }, []);
 
-  // Manejar el zoom
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.5, 3))
-  }
+  // Memoriza las props del Header
+  const headerProps = useMemo(() => ({
+    searchTerm,
+    setSearchTerm: memoSetSearchTerm,
+    handleFranchiseClick,
+  }), [searchTerm, memoSetSearchTerm, handleFranchiseClick]);
 
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.5, 1))
-  }
-
-  // Manejar clic en etiqueta de franquicia
-  const handleFranchiseClick = (franchise: string) => {
-    setSearchTerm(franchise)
-    // Desplazar al inicio de los resultados
-    window.scrollTo({
-      top: scrollRef.current?.offsetTop ?? 0,
-      behavior: "smooth",
-    })
-  }
-
-  // Resetear zoom al cerrar el diálogo
-  useEffect(() => {
-    if (!isDialogOpen) {
-      setZoomLevel(1)
-    }
-  }, [isDialogOpen])
+  // Memoriza las props del DesignDialog
+  const designDialogProps = useMemo(() => ({
+    isOpen: isDialogOpen,
+    onOpenChange: memoSetIsDialogOpen,
+    design: selectedDesign,
+    zoomLevel,
+    onZoomIn: handleZoomIn,
+    onZoomOut: handleZoomOut,
+  }), [
+    isDialogOpen,
+    memoSetIsDialogOpen,
+    selectedDesign,
+    zoomLevel,
+    handleZoomIn,
+    handleZoomOut,
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header - Sticky Navbar */}
-      <header className={`sticky top-0 z-50 bg-white transition-shadow duration-300 ${isScrolled ? "shadow-md" : ""}`}>
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-4 md:mb-0">
-              {/* Espacio para el logo */}
-              <div className="w-18 h-12 rounded-full mr-3 flex items-center justify-center">
-                <Image
-                  src="/monking.svg"
-                  alt="Logo"
-                  width={60}
-                  height={60}
-                  className="object-cover"
-                />
-              </div>
-              <h1 className="text-3xl font-bold text-black">Monking</h1>
-            </div>
-            <div className="relative w-full md:w-1/2 flex items-center">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Buscar por nombre o etiqueta..."
-                className="pl-10 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-
-              {/* Dropdown de franquicias */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-2 whitespace-nowrap">
-                    <Tag className="h-4 w-4 mr-2" />
-                    Franquicias
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
-                  {franchises.map((franchise, index) => (
-                    <DropdownMenuItem
-                      key={index}
-                      onClick={() => handleFranchiseClick(franchise)}
-                      className="cursor-pointer capitalize"
-                    >
-                      {franchise}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header {...headerProps} />
 
       {/* Hero Section con video de fondo */}
       <div className="relative h-[500px] overflow-hidden">
@@ -204,47 +176,19 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8" ref={scrollRef}>
+      <main className="container mx-auto px-4 py-8">
 
         <h2 className="text-2xl font-semibold mb-6 text-black">Nuestros Diseños de Bordado</h2>
 
         {/* Grid de diseños */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {
-            isLoading ? (
-              // Muestra un mensaje de carga
-              <div className="col-span-full text-center py-10">
-                <p className="text-gray-500">Cargando diseños...</p>
-              </div>
-            ) : (
-              filteredDesigns.map((design) => (
-
-
-                <div
-                  key={design.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer border border-gray-200"
-                  onClick={() => openDesignDetail(design)}
-                >
-                  <div className="relative h-64 w-full">
-                    <Image src={design.image || "/placeholder.svg"} alt={design.name} fill className="object-contain" />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold mb-2 text-black">{design.name}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {/* {console.log("tags:", design.tags)} */}
-                      {Array.isArray(design.tags) ? design.tags.map((tag, index) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="bg-gray-100 text-black hover:bg-gray-200 border-gray-300"
-                        >
-                          {tag}
-                        </Badge>
-                      )) : null}
-                    </div>
-                  </div>
-                </div>
-              )))}
+          {filteredDesigns.map((design) => (
+            <DesignCard
+              key={design.id}
+              design={design}
+              onClick={openDesignDetail}
+            />
+          ))}
         </div>
 
         {/* Mensaje si no hay resultados */}
@@ -256,77 +200,7 @@ export default function Home() {
       </main>
 
       {/* Diálogo para ver detalles con zoom */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        {selectedDesign && (
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-white">
-            <DialogHeader>
-              <DialogTitle className="text-2xl text-black">{selectedDesign.name}</DialogTitle>
-              <DialogDescription>
-                <div className="flex flex-wrap gap-2 mt-2">
-
-                  {Array.isArray(selectedDesign.tags) ? selectedDesign.tags.map((tag, index) => (
-                    <Badge key={index} variant="outline" className="bg-gray-100 text-black border-gray-300">
-                      {tag}
-                    </Badge>
-                  )) : <hr />}
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* Contenedor de imagen con zoom */}
-            <div className="relative overflow-hidden my-4">
-              <div className="flex justify-end mb-2 space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleZoomOut}
-                  disabled={zoomLevel <= 1}
-                  className="border-black text-black"
-                >
-                  <ZoomOut className="h-4 w-4 mr-1" /> Reducir
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleZoomIn}
-                  disabled={zoomLevel >= 3}
-                  className="border-black text-black"
-                >
-                  <ZoomIn className="h-4 w-4 mr-1" /> Ampliar
-                </Button>
-              </div>
-
-              <div
-                className="relative h-80 w-full overflow-auto"
-                style={{
-                  cursor: zoomLevel > 1 ? "move" : "default",
-                }}
-              >
-                <div
-                  style={{
-                    transform: `scale(${zoomLevel})`,
-                    transformOrigin: "center",
-                    transition: "transform 0.2s ease-out",
-                    height: "100%",
-                    width: "100%",
-                    position: "relative",
-                  }}
-                >
-                  <Image
-                    src={selectedDesign.image || "/placeholder.svg"}
-                    alt={selectedDesign.name}
-                    fill
-                    className="object-contain p-6"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* <p className="text-gray-700">{selectedDesign.description}</p> */}
-            <p className="text-sm text-gray-500 mt-4">Código: {selectedDesign.code}</p>
-          </DialogContent>
-        )}
-      </Dialog>
+      <DesignDialog {...designDialogProps} />
 
       {/* Footer */}
       <footer className="bg-black text-white py-8">
@@ -337,7 +211,6 @@ export default function Home() {
               <p className="text-gray-300">Diseños de bordado de alta calidad</p>
             </div>
             <div className="text-gray-300 text-sm">
-
               <p>© {new Date().getFullYear()} Monking. Todos los derechos reservados.</p>
             </div>
           </div>
