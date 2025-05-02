@@ -1,6 +1,6 @@
 "use client"
 
-import Header from '@/components/header';
+import Header from '@/components/Header';
 import { getData } from "@/src/firebase"
 import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { Badge } from "@/components/ui/badge"
