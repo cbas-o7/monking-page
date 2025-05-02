@@ -1,32 +1,13 @@
 "use client"
 
-import Header from '@/components/Header';
+import Header from '@/components/header';
 import { getData } from "@/src/firebase"
 import { useState, useEffect, useCallback, useMemo, memo } from "react"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Instagram } from "lucide-react"
 import Image from "next/image"
 import DesignDialog from '@/components/DesignDialog';
-
-// Lista de franquicias para el dropdown (fuera del componente para evitar recreación)
-const franchises = [
-  "naruto",
-  "nike",
-  "pokemon",
-  "dragon ball",
-  "one piece",
-  "demon slayer",
-  "attack on titan",
-  "pokemon",
-  "my hero academia",
-  "jujutsu kaisen",
-  "chainsaw man",
-  "hunter x hunter",
-  "bleach",
-  "death note",
-]
 
 // Memoized Design Card
 const DesignCard = memo(function DesignCard({
@@ -125,22 +106,6 @@ export default function Home() {
     handleFranchiseClick,
   }), [searchTerm, memoSetSearchTerm, handleFranchiseClick]);
 
-  // Memoriza las props del DesignDialog
-  const designDialogProps = useMemo(() => ({
-    isOpen: isDialogOpen,
-    onOpenChange: memoSetIsDialogOpen,
-    design: selectedDesign,
-    zoomLevel,
-    onZoomIn: handleZoomIn,
-    onZoomOut: handleZoomOut,
-  }), [
-    isDialogOpen,
-    memoSetIsDialogOpen,
-    selectedDesign,
-    zoomLevel,
-    handleZoomIn,
-    handleZoomOut,
-  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -200,7 +165,16 @@ export default function Home() {
       </main>
 
       {/* Diálogo para ver detalles con zoom */}
-      <DesignDialog {...designDialogProps} />
+    {selectedDesign && (
+      <DesignDialog
+        isOpen={isDialogOpen}
+        onOpenChange={memoSetIsDialogOpen}
+        design={selectedDesign}
+        zoomLevel={zoomLevel}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+      />
+    )}
 
       {/* Footer */}
       <footer className="bg-black text-white py-8">
