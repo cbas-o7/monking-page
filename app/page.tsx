@@ -131,7 +131,7 @@ export default function Home() {
         <div className="relative z-10 container mx-auto px-4 h-full flex flex-col justify-center items-center text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Diseños Únicos para Ti</h2>
           <p className="text-xl md:text-2xl text-white mb-6">Entrega en todo Monterrey con precios desde $450 MXN</p>
-          <a href="https://www.instagram.com/stitchking_mty/" target="_blank" rel="noopener noreferrer">
+          <a href={process.env.NEXT_PUBLIC_INSTAGRAM} target="_blank" rel="noopener noreferrer">
             <Button size="lg" className="bg-black hover:bg-gray-800 text-white border-white border">
               <Instagram className="mr-2 h-5 w-5" />
               Más información en Instagram
