@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, memo, useCallback } from 'react'
+import React, { useMemo, memo } from 'react'
 import Image from 'next/image'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -46,10 +46,6 @@ const Header: React.FC<HeaderProps> = memo(({ searchTerm, setSearchTerm, handleF
   // Memoriza la lista de franquicias
   const franchiseList = useMemo(() => franchises, []);
 
-  // Memoriza el handler de input
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
-  }, [setSearchTerm]);
 
   return (
     <header className={`sticky top-0 z-50 bg-white transition-shadow duration-300 `}>
@@ -75,7 +71,10 @@ const Header: React.FC<HeaderProps> = memo(({ searchTerm, setSearchTerm, handleF
                 placeholder="Buscar por nombre o etiqueta..."
                 className="pl-10 w-full"
                 value={searchTerm}
-                onChange={handleInputChange}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  //setCurrentPage(1) // Resetear a la primera página al buscar
+                }}
               />
 
               {/* Dropdown de franquicias */}

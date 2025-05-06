@@ -2,11 +2,11 @@
 
 import Header from '@/components/Header';
 import { getData } from "@/src/firebase"
-import { useState, useEffect, useCallback, useMemo, memo } from "react"
+import Image from "next/image"
+import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Instagram } from "lucide-react"
-import Image from "next/image"
+import { ChevronLeft, ChevronRight, Instagram } from "lucide-react"
 import DesignDialog from '@/components/DesignDialog';
 
 // Memoized Design Card
@@ -22,8 +22,8 @@ const DesignCard = memo(function DesignCard({
       className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer border border-gray-200"
       onClick={() => onClick(design)}
     >
-      <div className="relative h-64 w-full">
-        <Image src={design.image || "/placeholder.svg"} alt={design.name} fill className="object-contain" />
+      <div className="relative h-64 w-full ">
+      <Image src={design.image || "/placeholder.svg"} alt={design.name} fill className="object-contain" />
       </div>
       <div className="p-4">
         <h3 className="text-lg font-semibold mb-2 text-black">{design.name}</h3>
@@ -47,8 +47,11 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedDesign, setSelectedDesign] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; } | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1)
   const [designs, setDesigns] = useState<{ id: string; code: string; name: string; tags: string[]; image: string; }[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const designsPerPage = 52
+
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,30 +67,50 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Memoriza el filtrado para evitar cálculos innecesarios
-  const filteredDesigns = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase();
-    return Array.isArray(designs)
-      ? designs.filter((design) =>
-          design.name.toLowerCase().includes(searchLower) ||
-          (Array.isArray(design.tags) && design.tags.some(tag =>
-            tag.toLowerCase().includes(searchLower)
-          ))
-        )
-      : [];
-  }, [designs, searchTerm]);
+  const filteredDesigns = designs.filter((design) => {
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      design.name.toLowerCase().includes(searchLower) ||
+      design.tags.some((tag) => tag.toLowerCase().includes(searchLower))
+    )
+  })
 
-  // Memoriza funciones para evitar recreación
-  const handleZoomIn = useCallback(() => {
-    setZoomLevel((prev) => Math.min(prev + 0.5, 3))
-  }, []);
+  // Asegurar que la página actual sea válida cuando cambian los resultados filtrados
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredDesigns.length / designsPerPage))
+    if (currentPage > maxPage) {
+      setCurrentPage(1)
+    }
+  }, [filteredDesigns.length, currentPage, designsPerPage])
 
-  const handleZoomOut = useCallback(() => {
-    setZoomLevel((prev) => Math.max(prev - 0.5, 1))
-  }, []);
+  // Calcular el número total de páginas
+  const totalPages = Math.ceil(filteredDesigns.length / designsPerPage)
+
+  // Obtener los diseños para la página actual
+  const currentDesigns = filteredDesigns.slice((currentPage - 1) * designsPerPage, currentPage * designsPerPage)
+
+  interface PageChangeHandler {
+    (page: number): void;
+  }
+
+  const handlePageChange: PageChangeHandler = (page) => {
+    setCurrentPage(page);
+    // Desplazar al inicio de los resultados
+    window.scrollTo({
+      top: scrollRef.current ? scrollRef.current.offsetTop : 0,
+      behavior: "smooth",
+    });
+  };
 
   const handleFranchiseClick = useCallback((franchise: string) => {
     setSearchTerm(franchise)
+    setCurrentPage(1)
+
+    // Desplazar al inicio de los resultados
+    window.scrollTo({
+      top: scrollRef.current ? scrollRef.current.offsetTop : 0,
+      behavior: "smooth",
+    })
   }, []);
 
   const memoSetSearchTerm = useCallback((value: string) => setSearchTerm(value), []);
@@ -96,7 +119,6 @@ export default function Home() {
   const openDesignDetail = useCallback((design: { id: string; code: string; name: string; tags: string[]; image: string; }) => {
     setSelectedDesign(design)
     setIsDialogOpen(true)
-    setZoomLevel(1)
   }, []);
 
   // Memoriza las props del Header
@@ -143,11 +165,21 @@ export default function Home() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
 
-        <h2 className="text-2xl font-semibold mb-6 text-black">Nuestros Diseños de Bordado</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-black">Nuestros Diseños de Bordado</h2>
+
+          {/* Información de paginación */}
+          {filteredDesigns.length > 0 && (
+            <p className="text-gray-600">
+              Mostrando {(currentPage - 1) * designsPerPage + 1}-
+              {Math.min(currentPage * designsPerPage, filteredDesigns.length)} de {filteredDesigns.length} diseños
+            </p>
+          )}
+        </div>
 
         {/* Grid de diseños */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredDesigns.map((design) => (
+          {currentDesigns.map((design) => (
             <DesignCard
               key={design.id}
               design={design}
@@ -162,19 +194,82 @@ export default function Home() {
             <p className="text-gray-500 text-lg">No se encontraron diseños que coincidan con tu búsqueda.</p>
           </div>
         )}
+
+        {/* Controles de paginación */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-8 space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="border-black text-black"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+            </Button>
+
+            <div className="flex items-center space-x-1">
+              {/* Nueva lógica de paginación para evitar duplicados */}
+              {(() => {
+                const pages: (number | string)[] = [];
+                if (totalPages <= 7) {
+                  // Mostrar todas las páginas si son pocas
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  // Siempre mostrar la primera página
+                  pages.push(1, 2, 3);
+
+                  // Mostrar puntos suspensivos si estamos lejos del inicio
+                  if (currentPage > 4) pages.push('start-ellipsis');
+
+                  // Mostrar hasta 3 páginas alrededor de la actual
+                  const start = Math.max(4, currentPage - 2);
+                  const end = Math.min(totalPages - 3, currentPage + 1);
+                  for (let i = start; i <= end; i++) pages.push(i);
+
+                  // Mostrar puntos suspensivos si estamos lejos del final
+                  if (currentPage < totalPages - 3) pages.push('end-ellipsis');
+
+                  // Siempre mostrar la última página
+                  pages.push(totalPages - 2, totalPages - 1, totalPages);
+                }
+
+                return pages.map((page, idx) =>
+                  typeof page === "number" ? (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      className={currentPage === page ? "bg-black text-white" : "border-black text-black"}
+                      onClick={() => handlePageChange(page)}
+                    >
+                      {page}
+                    </Button>
+                  ) : (
+                    <span key={page + idx} className="px-2">...</span>
+                  )
+                );
+              })()}
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="border-black text-black"
+            >
+              Siguiente <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
       </main>
 
       {/* Diálogo para ver detalles con zoom */}
-    {selectedDesign && (
-      <DesignDialog
-        isOpen={isDialogOpen}
-        onOpenChange={memoSetIsDialogOpen}
-        design={selectedDesign}
-        zoomLevel={zoomLevel}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-      />
-    )}
+      {selectedDesign && (
+        <DesignDialog
+          isOpen={isDialogOpen}
+          onOpenChange={memoSetIsDialogOpen}
+          design={selectedDesign}
+        />
+      )}
 
       {/* Footer */}
       <footer className="bg-black text-white py-8">
@@ -185,7 +280,7 @@ export default function Home() {
               <p className="text-gray-300">Diseños de bordado de alta calidad</p>
             </div>
             <div className="text-gray-300 text-sm">
-              <p>© {new Date().getFullYear()} Monking. Todos los derechos reservados.</p>
+              <h6>© {new Date().getFullYear()} Monking. Todos los derechos reservados.</h6>
             </div>
           </div>
         </div>
